@@ -1,10 +1,35 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Copy, Check, RefreshCw } from 'lucide-react'
+import { HexColorPicker, HexColorInput } from 'react-colorful'
 
 export default function ColorPicker() {
   const [selectedColor, setSelectedColor] = useState('#646cff')
+  const [isOpen, setIsOpen] = useState(false)
   const [copiedHex, setCopiedHex] = useState(false)
   const [copiedRgb, setCopiedRgb] = useState(false)
+  
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const hexTimeoutRef = useRef<number | undefined>(undefined)
+  const rgbTimeoutRef = useRef<number | undefined>(undefined)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
 
   const hexToRgb = (hex: string) => {
     const bigint = parseInt(hex.slice(1), 16)
@@ -14,12 +39,12 @@ export default function ColorPicker() {
     return `${r}, ${g}, ${b}`
   }
 
-  const handleColorChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedColor(event.target.value)
+  const handleColorChange = (newColor: string) => {
+    setSelectedColor(newColor)
   }
 
   const generateRandomColor = () => {
-    const randomColor = Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')
+    const randomColor = Math.floor(Math.random()*16777216).toString(16).padStart(6, '0')
     setSelectedColor(`#${randomColor}`)
   }
 
@@ -28,10 +53,12 @@ export default function ColorPicker() {
       await navigator.clipboard.writeText(text)
       if (type === 'hex') {
         setCopiedHex(true)
-        setTimeout(() => setCopiedHex(false), 2000)
+        clearTimeout(hexTimeoutRef.current)
+        hexTimeoutRef.current = window.setTimeout(() => setCopiedHex(false), 2000)
       } else {
         setCopiedRgb(true)
-        setTimeout(() => setCopiedRgb(false), 2000)
+        clearTimeout(rgbTimeoutRef.current)
+        rgbTimeoutRef.current = window.setTimeout(() => setCopiedRgb(false), 2000)
       }
     } catch (err) {
       console.error('Failed to copy text: ', err)
@@ -41,7 +68,7 @@ export default function ColorPicker() {
   const rgbColor = `rgb(${hexToRgb(selectedColor)})`
 
   return (
-    <div className="w-full max-w-md mx-auto p-8 bg-white/80 backdrop-blur-xl shadow-2xl rounded-3xl border border-zinc-200/50">
+    <div className="w-full max-w-md mx-auto p-8 bg-white shadow-2xl rounded-3xl border border-zinc-200/50">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-extrabold text-zinc-900 tracking-tight">Color Picker</h1>
         <div className="flex space-x-2">
@@ -61,24 +88,35 @@ export default function ColorPicker() {
         style={{ backgroundColor: selectedColor }}
       ></div>
 
-      <div className="mb-8 relative group">
-        <label
-          htmlFor="color-picker-input"
-          className="flex items-center space-x-4 p-2 bg-zinc-50 rounded-xl border border-zinc-200/60 focus-within:ring-2 focus-within:ring-zinc-900/10 focus-within:border-zinc-400 transition-all cursor-pointer"
+      <div className="mb-8 relative" ref={popoverRef}>
+        <div 
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center space-x-4 p-2 bg-zinc-50 rounded-xl border border-zinc-200/60 transition-all cursor-pointer hover:bg-zinc-100"
         >
-           <input
-            id="color-picker-input"
-            type="color"
-            value={selectedColor}
-            onChange={handleColorChange}
-            className="w-14 h-14 rounded-lg cursor-pointer border-0 bg-transparent p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-lg [&::-moz-color-swatch]:border-none [&::-moz-color-swatch]:rounded-lg shadow-sm"
-            title="Choose a color"
-          />
+          <div 
+            className="w-14 h-14 rounded-lg shadow-sm border border-black/5 flex-shrink-0 transition-colors duration-200"
+            style={{ backgroundColor: selectedColor }}
+          ></div>
           <div className="flex-1">
             <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Select Color</p>
             <p className="text-lg font-medium text-zinc-900 leading-none">{selectedColor.toUpperCase()}</p>
           </div>
-        </label>
+        </div>
+
+        {isOpen && (
+          <div className="absolute top-full left-0 mt-3 z-50 p-4 bg-white shadow-2xl rounded-2xl border border-zinc-200/60 animate-in fade-in zoom-in-95 duration-200 flex flex-col items-center">
+            <HexColorPicker color={selectedColor} onChange={handleColorChange} />
+            <div className="mt-4 flex items-center w-full px-3 py-2 bg-zinc-50 border border-zinc-200/60 rounded-xl focus-within:ring-2 focus-within:ring-zinc-900/10 focus-within:border-zinc-400 transition-all">
+              <span className="text-zinc-400 font-mono text-sm mr-1">#</span>
+              <HexColorInput 
+                color={selectedColor} 
+                onChange={handleColorChange} 
+                className="w-full bg-transparent border-none outline-none text-sm font-mono text-zinc-700 uppercase"
+                placeholder="FFFFFF"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
