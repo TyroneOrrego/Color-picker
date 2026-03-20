@@ -1,12 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
-import { Copy, Check, RefreshCw } from 'lucide-react'
+import { Copy, Check, RefreshCw, Pipette } from 'lucide-react'
 import { HexColorPicker, HexColorInput } from 'react-colorful'
+import { useEyeDropper } from '../hooks/useEyeDropper'
 
 export default function ColorPicker() {
   const [selectedColor, setSelectedColor] = useState('#646cff')
   const [isOpen, setIsOpen] = useState(false)
   const [copiedHex, setCopiedHex] = useState(false)
   const [copiedRgb, setCopiedRgb] = useState(false)
+  const { isSupported, isActive, openEyeDropper, error } = useEyeDropper()
+
+  const handleEyeDropper = async () => {
+    const hex = await openEyeDropper();
+    if (hex) {
+      setSelectedColor(hex);
+    }
+  }
   
   const popoverRef = useRef<HTMLDivElement>(null)
   const hexTimeoutRef = useRef<number | undefined>(undefined)
@@ -72,6 +81,17 @@ export default function ColorPicker() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-extrabold text-zinc-900 tracking-tight">Color Picker</h1>
         <div className="flex space-x-2">
+          {isSupported && (
+            <button
+              onClick={handleEyeDropper}
+              disabled={isActive}
+              className={`p-2 rounded-full transition-all active:scale-95 ${isActive ? 'bg-blue-100 text-blue-600' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+              title="Pick color from screen"
+              aria-label="Pick color from screen"
+            >
+              <Pipette className="w-5 h-5" />
+            </button>
+          )}
           <button
             onClick={generateRandomColor}
             className="p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-full transition-all active:scale-95"
@@ -82,6 +102,12 @@ export default function ColorPicker() {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl relative animate-in fade-in zoom-in-95 duration-200 text-center font-medium">
+          {error}
+        </div>
+      )}
 
       <div 
         className="w-full h-48 mb-6 rounded-2xl shadow-inner transition-colors duration-200 ease-in-out border border-black/5"
